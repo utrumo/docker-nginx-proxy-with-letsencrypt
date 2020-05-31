@@ -1,0 +1,53 @@
+version: '3.8'
+services:
+  nginx-proxy:
+    container_name: nginx-proxy
+    hostname: nginx-proxy
+    labels:
+      - com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy
+    image: nginx:alpine
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./data/conf.d:/etc/nginx/conf.d:ro
+      - ./data/vhost.d:/etc/nginx/vhost.d:ro
+      - ./data/htpasswd:/etc/nginx/htpasswd:ro
+      - ./data/certs:/etc/nginx/certs:ro
+      - ./data/html:/usr/share/nginx/html:ro
+    restart: always
+
+  nginx-gen:
+    container_name: nginx-gen
+    hostname: nginx-gen
+    labels:
+      - com.github.jrcs.letsencrypt_nginx_proxy_companion.docker_gen
+    image: utrumo/nginx-gen
+    volumes:
+      - ./data/conf.d:/etc/nginx/conf.d:rw
+      - ./data/vhost.d:/etc/nginx/vhost.d:ro
+      - ./data/htpasswd:/etc/nginx/htpasswd:ro
+      - ./data/certs:/etc/nginx/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+    depends_on:
+      - nginx-proxy
+
+  nginx-letsencrypt:
+    container_name: nginx-letsencrypt
+    hostname: nginx-letsencrypt
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    volumes:
+      - ./data/vhost.d:/etc/nginx/vhost.d:rw
+      - ./data/certs:/etc/nginx/certs:rw
+      - ./data/html:/usr/share/nginx/html:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+    depends_on:
+      - nginx-proxy
+      - nginx-gen
+
+networks:
+  default:
+    external:
+      name: nginx-proxy
